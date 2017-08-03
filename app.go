@@ -2,28 +2,21 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
 )
 
-func GetFavoriteTeams(w http.ResponseWriter, req *http.Request) {
-	params := mux.Vars(req)
+func GetFavoritesClosure() func(w http.ResponseWriter, req *http.Request) {
+	provider := FavTeamProvider{}
 
-	var zipCode = params["zip_code"]
+	provider.init()
 
-	//read file to map
-	file, e := ioutil.ReadFile("./fan_favs.json")
+	return func(w http.ResponseWriter, req *http.Request) {
+		params := mux.Vars(req)
 
-	if e == nil {
-		//get value for key zipcode
-		var objmap map[string]*json.RawMessage
-
-		json.Unmarshal(file, &objmap)
-
-		var favoriteTeams = objmap[zipCode]
+		var favoriteTeams = provider.favoritesByZip(params["zip_code"])
 
 		json.NewEncoder(w).Encode(favoriteTeams)
 	}
@@ -31,6 +24,8 @@ func GetFavoriteTeams(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 	router := mux.NewRouter()
-	router.HandleFunc("/fan/{zip_code}", GetFavoriteTeams).Methods("GET")
+
+	router.HandleFunc("/fan/{zip_code}", GetFavoritesClosure()).Methods("GET")
+
 	log.Fatal(http.ListenAndServe(":2020", router))
 }
